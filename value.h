@@ -21,6 +21,7 @@ typedef struct ObjString ObjString;  // payload for strings
 
 typedef uint64_t Value;
 
+    #define IS_BOOL(value) ((value) == TRUE_VAL || (value) == FALSE_VAL)
     #define IS_NIL(value) ((value) == NIL_VAL)
 
     // macro to check if a number is a double
