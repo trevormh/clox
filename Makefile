@@ -48,3 +48,23 @@ runfile: compile
 # ----- Clean -----
 clean:
 	rm -rf $(OUT_DIR)
+
+# ----- Test -----
+.PHONY: test
+
+test: compile
+	@set -e; \
+	if [ -n "$(ARGS)" ]; then \
+		dir="test/$(word 1,$(ARGS))"; \
+	else \
+		dir="test"; \
+	fi; \
+	if [ ! -d "$$dir" ]; then \
+		echo "Test directory not found: $$dir"; \
+		exit 1; \
+	fi; \
+	find "$$dir" -type f -name '*.lox' -print0 | \
+	while IFS= read -r -d '' file; do \
+		echo "Running $$file"; \
+		./$(OUT_DIR)/$(BIN) "$$file" || true; \
+	done

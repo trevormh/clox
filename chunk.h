@@ -4,7 +4,6 @@
 #include "common.h"
 #include "value.h"
 
-// each instruction has a 1-byte operation code aka opcode
 typedef enum {
     OP_CONSTANT,
     OP_NIL,
@@ -28,8 +27,8 @@ typedef enum {
     OP_SUBTRACT,
     OP_MULTIPLY,
     OP_DIVIDE,
-    OP_NOT,     // ex: !true
-    OP_NEGATE,  // make a value negative, ex -a
+    OP_NOT,
+    OP_NEGATE,
     OP_PRINT,
     OP_JUMP,
     OP_JUMP_IF_FALSE,
@@ -45,13 +44,12 @@ typedef enum {
     OP_METHOD
 } OpCode;
 
-// Chunk refers to a sequence of bytecode...an array
 typedef struct {
-    int count;             // how many elements are in the array
-    int capacity;          // number of elements we have allocated
-    uint8_t* code;         // the opcodes, stored as a pointer to contiguous block of bytes...an array
-    int* lines;            // line numbers where the code originated from
-    ValueArray constants;  // array of constants (constant pool), struct defined in value.h
+    int count;
+    int capacity;
+    uint8_t* code;
+    int* lines;
+    ValueArray constants;
 } Chunk;
 
 void initChunk(Chunk* chunk);

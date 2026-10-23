@@ -13,28 +13,15 @@ void disassembleChunk(Chunk* chunk, const char* name) {
 }
 
 static int constantInstruction(const char* name, Chunk* chunk, int offset) {
-    // offset is the index of the opcode, constant will be located after the opcode
     uint8_t constant = chunk->code[offset + 1];
     printf("%-16s %4d '", name, constant);
     printValue(chunk->constants.values[constant]);
     printf("'\n");
-    // The current offset is the opcode
-    // The offset after that is the opcode's value (constant)
-    // The index after that should be the offset for the next iteration
     return offset + 2;
 }
 
-/**
- * Invoke instructions are used for calling a method directly after
- * accessing it instead of in 2 steps.
- * Instead of
- * var a = my_instance.my_method;
- * a();
- * do it in one step
- * var a = my_instance.my_method();
- */
 static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
-    uint8_t constant = chunk->code[offset + 1];  // index of method in constant pool
+    uint8_t constant = chunk->code[offset + 1];
     uint8_t argCount = chunk->code[offset + 2];
     printf("%-16s (%d args) %4d '", name, argCount, constant);
     printValue(chunk->constants.values[constant]);
@@ -47,27 +34,12 @@ static int simpleInstruction(const char* name, int offset) {
     return offset + 1;
 }
 
-/**
- * Helper function to show local variable names.
- * The compiler compiles local variables to direct slot access.
- * The local variable’s name never leaves the compiler to make it into the chunk at all.
- * We can’t show the variable’s name like we could with globals. Instead, we just show the slot number.
- */
 static int byteInstruction(const char* name, Chunk* chunk, int offset) {
     uint8_t slot = chunk->code[offset + 1];
     printf("%-16s %4d\n", name, slot);
     return offset + 2;
 }
 
-/**
- * Helper function to read 16 bit instructions.
- * Conditional operatores use 2 bytes and combine them into
- * a single value so that we can store larger numbers than
- * a single byte can hold.
- *
- * Ex: 2300 in binary is 00001000 11111100
- * It occupies 2 bytes but we combine them into a single slot
- */
 static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset) {
     uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
     jump |= chunk->code[offset + 2];
@@ -78,19 +50,12 @@ static int jumpInstruction(const char* name, int sign, Chunk* chunk, int offset)
 int disassembleInstruction(Chunk* chunk, int offset) {
     printf("%04d ", offset);
 
-    /*
-    Bytecode instructions tend to be pretty fine-grained.
-    A single line of source code often compiles to a whole sequence of instructions.
-    To make that more visually clear, we show a | for any instruction that
-    comes from the same source line as the preceding one.
-    */
     if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
         printf("   | ");
     } else {
         printf("%4d ", chunk->lines[offset]);
     }
 
-    // Read a single byte from the bytecode at the offset...this is our opcode
     uint8_t instruction = chunk->code[offset];
     switch (instruction) {
         case OP_CONSTANT:
@@ -162,12 +127,6 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             printValue(chunk->constants.values[constant]);
             printf("\n");
 
-            /**
-             * OP_CLOSURE has a 2 byte operand
-             * If the first operand is 1 it captures a local variable in the enclosing function.
-             * if 0, it captures one of the upvalues.
-             * The next operand is the index where the local or upvalue can be found
-             */
             ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
             for (int j = 0; j < function->upvalueCount; j++) {
                 int isLocal = chunk->code[offset++];

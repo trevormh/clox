@@ -6,12 +6,8 @@
 #include "table.h"
 #include "value.h"
 
-// Macro to extract the object type tag from a given Value
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
 
-// Macro to check if an Obj* is of ObjFunction*, ObjString*, etc...
-// before casting "down" ("generic" Obj* to ObjString*)
-// Takes a Value, not raw obj* because most of the code in the VM works with Values
 #define IS_BOUND_METHOD(value) isObjType(value, OBJ_BOUND_METHOD)
 #define IS_CLASS(value) isObjType(value, OBJ_CLASS)
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
@@ -20,7 +16,6 @@
 #define IS_NATIVE(value) isObjType(value, OBJ_NATIVE)
 #define IS_STRING(value) isObjType(value, OBJ_STRING)
 
-// Macros to assist with converting between lox runtime Value to a C pointer type
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
 #define AS_CLASS(value) ((ObjClass*)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure*)AS_OBJ(value))
@@ -43,56 +38,42 @@ typedef enum {
 
 struct Obj {
     ObjType type;
-    bool isMarked;  // flag to mark var as reachable, i.e. not a candidate for garbage collection
+    bool isMarked;
     struct Obj* next;
 };
 
 typedef struct {
-    // functions are first class, so they need to be actual lox objects
-    Obj obj;           // functions need the same Obj header that all objects share
-    int arity;         // number of parameters the function expects
-    int upvalueCount;  // upvalues are local variables defined in an enclosing function
-    Chunk chunk;       // the body of the function
+    Obj obj;
+    int arity;
+    int upvalueCount;
+    Chunk chunk;
     ObjString* name;
 } ObjFunction;
 
-// Native function takes argcount and pointer to the first argument on the stack
-// Value is the return type
-// *NativeFn is a pointer to the function
 typedef Value (*NativeFn)(int argCount, Value* args);
 
 typedef struct {
     Obj obj;
-    NativeFn function;  // pointer to C function that implements the behavior
+    NativeFn function;
 } ObjNative;
 
-/**
- * Struct to define a string object.
- * This is stored in a separate heap-allocated array so we
- * only set aside as much memory as needed for the string.
- */
 struct ObjString {
-    Obj obj;  // Obj is a struct itself
+    Obj obj;
     int length;
     char* chars;
-    uint32_t hash;  // cache the hash so we don't have to compute it every time
+    uint32_t hash;
 };
 
 typedef struct ObjUpvalue {
     Obj obj;
-    Value* location;  // closed-over local variables don't live on the stack, they're in the heap
-    // the value of the upvalue will be set here when it's closed, and then
-    // the location property will point to it for the VM to read.
+    Value* location;
     Value closed;
     struct ObjUpvalue* next;
 } ObjUpvalue;
 
-// wraps functions to handle variables in closures
 typedef struct {
     Obj obj;
     ObjFunction* function;
-    // pointer to an array of pointers, i.e. each index of the array contains pointers
-    // different closures may have different numbers of upvalues, so it needs to be a dynamic array
     ObjUpvalue** upvalues;
     int upvalueCount;
 } ObjClosure;
@@ -100,28 +81,17 @@ typedef struct {
 typedef struct {
     Obj obj;
     ObjString* name;
-    // hash table to store class methods
-    // keys are the method names and values are an ObjClosure object for the body
     Table methods;
 } ObjClass;
 
-// Object to store instance of a class
-// enables binding methods/properties at runtime 
 typedef struct {
     Obj obj;
     ObjClass* klass;
     Table fields;
 } ObjInstance;
 
-// Wrapper for methods to track the instance that it was accessed from
-// The bound object can later be called like a function
 typedef struct {
     Obj obj;
-    /**
-     * The receiver is the object which the method was accessed on. Ex:
-     * var jane = Person();
-     * jane.name = "Jane"; <--- jane is the receiver
-     */
     Value receiver;
     ObjClosure* method;
 } ObjBoundMethod;
@@ -138,15 +108,6 @@ ObjString* copyString(const char* chars, int length);
 ObjUpvalue* newUpvalue(Value* slot);
 void printObject(Value value);
 
-/**
- * isObjType isn't declared as part of the IS_STRING macro,
- * because if we passed it something that has side effects,
- * like pop(), it would be evaluated twice.
- *
- * Ex: IS_STRING(POP())
- * Would be evaluated as: IS_OBJ(POP()) && AS_OBJ(POP())->type == type;
- * which pops 2 values off the stack
- */
 static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
